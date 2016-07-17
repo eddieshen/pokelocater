@@ -3,6 +3,11 @@
 	<script src="https://code.jquery.com/jquery-1.6.4.min.js"></script>
         <title>Poke-locator</title>
         <script type="text/javascript">
+
+        // Push over to https
+        if (window.location.protocol != "https:")
+            window.location.href = "https:" + window.location.href.substring(window.location.protocol.length);
+        
         function handler(location)
         {
             $('#lat').html(location.coords.latitude);
