@@ -2,3 +2,6 @@
 db.sqlite3
 
 access_token.json
+
+.idea/
+.idea
