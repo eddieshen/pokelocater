@@ -7,6 +7,8 @@ import argparse
 import pokemon_pb2
 import time
 import os
+import geopy
+import geopy.distance
 from collections import OrderedDict
 
 from google.protobuf.internal import encoder
@@ -52,6 +54,23 @@ COORDS_ALTITUDE = 0
 FLOAT_LAT = 0
 FLOAT_LONG = 0
 
+LON_STEP = 0.006722 # x, positive = east
+LAT_STEP = 0.004532 # y, positive = north
+STEP = [(0,0), # n/a
+        (1,0), # e
+        (1,-1), # se
+        (0,-1), # s
+        (-1,-1), #sw
+        (-1,0), # w
+        (-1,1), # nw
+        (0,1), # n
+        (1,1) # ne
+        ]
+
+def getOffsetsFromStepNumber(step):
+    dlon, dlat = STEP[step%9]
+    return (dlon*LON_STEP, dlat*LAT_STEP)
+
 def f2i(float):
   return struct.unpack('<Q', struct.pack('<d', float))[0]
 
@@ -61,15 +80,19 @@ def f2h(float):
 def h2f(hex):
   return struct.unpack('<d', struct.pack('<Q', int(hex,16)))[0]
 
-def set_location(location_name):
+def set_location(location_name, step):
     geolocator = GoogleV3()
     loc = geolocator.geocode(location_name)
 
+    dlon, dlat = getOffsetsFromStepNumber(int(step))
+    lat = loc.latitude + dlat
+    lon = loc.longitude + dlon
     print('[!] Your given location: {}'.format(loc.address.encode('utf-8')))
-    print('[!] lat/long/alt: {} {} {}'.format(loc.latitude, loc.longitude, loc.altitude))
-    set_location_coords(loc.latitude, loc.longitude, loc.altitude)
+    print('[!] lat/long/alt: {} {} {}'.format(lat, lon, loc.altitude))
+    set_location_coords(lat, lon, loc.altitude)
 
 def set_location_coords(lat, long, alt):
+    print('set_location_coords: {}, {}, {}'.format(lat, long, alt))
     global COORDS_LATITUDE, COORDS_LONGITUDE, COORDS_ALTITUDE
     global FLOAT_LAT, FLOAT_LONG
     FLOAT_LAT = lat
@@ -322,13 +345,14 @@ def heartbeat(api_endpoint, access_token, response, login_type):
     heartbeat.ParseFromString(payload)
     return heartbeat
 
-def main(location=None):
+def main(location=None, step=0):
+    print('step={}'.format(step))
     
     pokemons = json.load(open('api/pokemon.json'))
     ptc_username = os.environ.get('PTC_USERNAME', "Invalid")
     ptc_password = os.environ.get('PTC_PASSWORD', "Invalid")
             
-    set_location(location)
+    set_location(location, step)
     
     login_type = "ptc"
     access_token = "fake"
@@ -463,7 +487,7 @@ def main(location=None):
 
         break
 
-    return nearby_pokes
+    return (nearby_pokes, (int(step)+1)%9)
 
 if __name__ == '__main__':
     main()

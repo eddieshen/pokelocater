@@ -26,6 +26,7 @@
     var infoWindowContent = [];
     var marker_images = [];
     var first_load = true;
+    var map;
 
     jQuery(function($) {
         // Asynchronously Load the map API 
@@ -39,55 +40,51 @@
     }
 
     function build_initial_map(location) {
-    	//Your position
-    	$('#map_canvas').html('');
-    	marker_obj = ["Ashe", location.coords.latitude,location.coords.longitude];
-    	markers.push(marker_obj);
-    	infoWindowContent_obj = ['<div class="info_content"><h3>You</h3></div>'];
-    	infoWindowContent.push(infoWindowContent_obj);
-    	marker_images.push("/static/poke/trainer.gif");
-    	create_map();
+    	$('#map_canvas').html(''); // clear map
+    	trainerMarkerObj = ["Ashe", location.coords.latitude,location.coords.longitude];
+    	trainerInfo = ['<div class="info_content"><h3>You</h3></div>'];
+    	trainerImg = "/static/poke/trainer.gif";
+    	create_map(trainerMarkerObj, trainerImg, trainerInfo);
     	first_load = false;
-    	build_map_update(location);
+    	build_map_update(location, 0);
     }
 
-    function build_map_update(location) {
-    	$.ajax({ 
+    function build_map_update(location, step) {
+    	$.ajax({
     		type: 'POST', 
     		url: '/get_poke', 
-    		data: { location: location.coords.latitude.toString()+', '+location.coords.longitude.toString() }, 
+    		data: { location: location.coords.latitude.toString()+', '+location.coords.longitude.toString(),
+                    step: step },
     		dataType: 'json',
     		success: function (data) {
     			console.log("pokemon_data", data.data);
-    			markers = [];
-    			infoWindowContent = [];
-    			marker_images = [];
-    			
-    			marker_obj = ["Ashe", location.coords.latitude,location.coords.longitude];
-    			markers.push(marker_obj);
-    			infoWindowContent_obj = ['<div class="info_content"><h3>You</h3></div>'];
-    			infoWindowContent.push(infoWindowContent_obj);
-    			marker_images.push("/static/poke/trainer.gif");
-    			
+                console.log("step", data.step);
+                var next_step = data.step;
+
     			$.each(data.data, function(k, v) {
-    				marker_obj = [v.name, v.latitude,v.longitude];
-    				markers.push(marker_obj);
-    				infoWindowContent_obj = ['<div class="info_content">' +
-    		'<h3>'+v.name+'</h3>' +
-    		'<p>will be there for another '+v.time_left+' seconds.</p>' +        '</div>'];
-    				infoWindowContent.push(infoWindowContent_obj);
-    				marker_images.push("/static/poke/"+v.id+".ico");
+    				markerObj = [v.name, v.latitude,v.longitude];
+    				markerInfo = ['<div class="info_content">' +
+                        '<h3>'+v.name+'</h3>' +
+                        '<p>will be there for another '+v.time_left+' seconds.</p>' +        '</div>'];
+                    markerImg = "/static/poke/"+v.id+".ico";
+                    add_poke(markerObj, markerImg, markerInfo)
     			});
-    			$('#map_canvas').html('');
-    			create_map();
     			setTimeout(function(){
-    				navigator.geolocation.getCurrentPosition(handler);
-    			}, 60000);
+    				navigator.geolocation.getCurrentPosition(function(location){
+                        build_map_update(location, next_step);
+                    });
+    			}, 0);
     		},
-    		error: function() {
-    			console.log('Error while attempting to retrieve poke locations');
+    		error: function(xhr, ajaxOptions, thrownError) {
+                console.log('Error while attempting to retrieve poke locations:');
+                console.log(xhr.status);
+                console.log(xhr.responseText);
+                console.log(thrownError);
+                console.log('params: '+location+' '+step);
     			setTimeout(function(){
-    				navigator.geolocation.getCurrentPosition(handler);
+    				navigator.geolocation.getCurrentPosition(function(location){
+                        build_map_update(location, step);
+                    });
     			}, 5000);
     		}
     	});
@@ -98,53 +95,42 @@
             build_initial_map(location);
         }
     	else {
-    		build_map_update(location);
+    		build_map_update(location, 0);
     	}
     }
 
-    function create_map() {
-        var map;
-        var bounds = new google.maps.LatLngBounds();
-        var mapOptions = {
-            mapTypeId: 'roadmap'
-        };
-                        
+    function create_map(trainerMarkerObj, trainerImg, trainerInfo) {
         // Display a map on the page
-        map = new google.maps.Map(document.getElementById("map_canvas"), mapOptions);
-        map.setTilt(45);
-            
-        // Display multiple markers on a map
-        var infoWindow = new google.maps.InfoWindow(), marker, i;
-        
-        // Loop through our array of markers & place each one on the map  
-        for( i = 0; i < markers.length; i++ ) {
-            var position = new google.maps.LatLng(markers[i][1], markers[i][2]);
-            bounds.extend(position);
-            marker = new google.maps.Marker({
-                position: position,
-                map: map,
-                title: markers[i][0],
-    			icon: marker_images[i]
-            });
-    		
-            // Allow each marker to have an info window    
-            google.maps.event.addListener(marker, 'click', (function(marker, i) {
-                return function() {
-                    infoWindow.setContent(infoWindowContent[i][0]);
-                    infoWindow.open(map, marker);
-                }
-            })(marker, i));
-
-            // Automatically center the map fitting all markers on the screen
-            map.fitBounds(bounds);
-        }
-
-        // Override our map zoom level once our fitBounds function runs (Make sure it only runs once)
-        var boundsListener = google.maps.event.addListener((map), 'bounds_changed', function(event) {
-            this.setZoom(18);
-            google.maps.event.removeListener(boundsListener);
+        map = new google.maps.Map(document.getElementById("map_canvas"), {
+            center: {lat: trainerMarkerObj[1], lng: trainerMarkerObj[2]},
+            mapTypeId: 'roadmap',
+            zoom: 18
         });
-        
+        map.setTilt(45);
+
+        add_poke(trainerMarkerObj, trainerImg, trainerInfo);
+    }
+
+    function add_poke(markerObj, markerImg, markerInfo) {
+        var position = new google.maps.LatLng(markerObj[1], markerObj[2]);
+        //var bounds = map.getBounds();
+        var infoWindow = new google.maps.InfoWindow({
+            content: markerInfo[0]
+        });
+
+        //bounds.extend(position);
+        var marker = new google.maps.Marker({
+            position: position,
+            map: map,
+            title: markerObj[0],
+            icon: markerImg
+        });
+
+        marker.addListener('click', function() {
+            infoWindow.open(map, marker);
+        });
+
+        //map.fitBounds(bounds);
     }
     </script>
 </body>
