@@ -475,7 +475,7 @@ def main(location=None, step=0):
 
             disappear_timestamp = time.time() + poke.TimeTillHiddenMs/1000
             disappear_time_formatted = datetime.fromtimestamp(disappear_timestamp).strftime("%I:%M:%S %p")
-            disappears_at = 'Disappearing at: ' + disappear_time_formatted + ' (' + poke.TimeTillHiddenMs//60000 + ':' + poke.TimeTillHiddenMs%60000 + ' left)'
+            disappears_at = 'Disappearing at %s' % (disappear_time_formatted)
 
             nearby_pokes.append({
                 "id": poke.pokemon.PokemonId,
