@@ -474,8 +474,8 @@ def main(location=None, step=0):
             direction = (('N' if difflat >= 0 else 'S') if abs(difflat) > 1e-4 else '')  + (('E' if difflng >= 0 else 'W') if abs(difflng) > 1e-4 else '')
 
             disappear_timestamp = time.time() + poke.TimeTillHiddenMs/1000
-            disappear_time_formatted = datetime.fromtimestamp(disappear_timestamp).strftime("%H:%M:%S")
-            disappears_at = 'Disappearing at: %s' % (disappear_time_formatted)
+            disappear_time_formatted = datetime.fromtimestamp(disappear_timestamp).strftime("%I:%M:%S %p")
+            disappears_at = ('Disappearing at: %s' % (disappear_time_formatted)) + ' (' + poke.TimeTillHiddenMs//60000 + ':' + poke.TimeTillHiddenMs%60000 + ' left)'
 
             nearby_pokes.append({
                 "id": poke.pokemon.PokemonId,
